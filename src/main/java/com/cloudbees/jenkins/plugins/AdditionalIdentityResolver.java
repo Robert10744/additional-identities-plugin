@@ -30,6 +30,7 @@ import hudson.Extension;
 import hudson.init.Initializer;
 import hudson.model.User;
 import java.util.Map;
+import hudson.tasks.Mailer;
 
 /**
  * @author <a href="mailto:nicolas.deloof@gmail.com">Nicolas De Loof</a>
@@ -41,6 +42,27 @@ public class AdditionalIdentityResolver extends User.CanonicalIdResolver {
     public String resolveCanonicalId(String id, Map<String, ?> context) {
 
         String realm = null;
+
+        // If the context hash map contains a key with "EMail" search the user database
+        // for this EMail first (used in combination with Surround-SCM-Plugin and LDAP
+        // to avoid duplicate users
+        if (context != null)
+        {
+            String targetEMail = (String)context.get("EMail");
+            if(targetEMail != null) {
+                for (User user : User.getAll()) {
+                    Mailer.UserProperty userProps = user.getProperty(Mailer.UserProperty.class);
+                    if (userProps != null) {
+                        String mail = userProps.getAddress();
+                        if (mail != null) {
+                            if (targetEMail.equalsIgnoreCase(mail)) {
+                                return user.getId();
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         if (context != null) {
             realm = (String) context.get(User.CanonicalIdResolver.REALM);
